@@ -40,6 +40,7 @@ import random
 
 from twisted.python import log,util
 from twisted.internet import reactor
+import numpy as np
 
 def myFLOemit(self,eventDict):
     """Custom emit for FileLogObserver"""
@@ -110,7 +111,7 @@ class MyClientProtocol(WebSocketClientProtocol):
 
 
         print "callLater cb_send_frame_loop"
-        self.factory.reactor.callLater(5,cb_send_frame_loop)
+        self.factory.reactor.callLater(1,cb_send_frame_loop)
         #Call send_frame_loop after 250 ms
 
     def onConnect(self, response):
@@ -129,16 +130,16 @@ class MyClientProtocol(WebSocketClientProtocol):
 
         def deactivate_training():
             print "deactivate_training"
-            self.set_training_mode(0)
+            self.set_training_mode(False)
 
         def add_roch():
             print "add_roch"
             self.add_person("Roch")
-            self.factory.reactor.callLater(5,deactivate_training)
+            self.factory.reactor.callLater(10,deactivate_training)
 
         def activate_training():
             print "activate_training"
-            self.set_training_mode(1)
+            self.set_training_mode(True)
             self.factory.reactor.callLater(1,add_roch)
 
 
@@ -149,7 +150,7 @@ class MyClientProtocol(WebSocketClientProtocol):
             #self.factory.reactor.callLater(2, hello)
             self.sent_times.append(datetime.now())
 
-            self.factory.reactor.callLater(1,activate_training)
+            self.factory.reactor.callLater(0,activate_training)
 
 
 
@@ -158,17 +159,34 @@ class MyClientProtocol(WebSocketClientProtocol):
 
 
     def transform_image_from_rgb(self,rgb_content):
-            imgF = StringIO.StringIO()
-            imgF.write(rgb_content)
-            imgF.seek(0)
-            img = Image.open(imgF)
+            dlen=len(rgb_content)
+            rgb = [int(x) for x in rgb_content]
+            print "dlen",dlen
+            data=""
+            t=0
+            for i in range(0,dlen,4):
+                data += chr(rgb[t+2])
+                data += chr(rgb[t+1])
+                data += chr(rgb[t])
+                data += chr(255)
+                t += 3
+
+            print "data len",len(data)
+            img=Image.frombytes("RGBA",(96,72),data)
+            #imgF = StringIO.StringIO()
+            #imgF.write(data)
+            #imgF.seek(0)
+            #img = Image.open(imgF)
+
             img.save("transform_image_from_rgb.jpg","JPEG")
+            return data
 
 
     def set_training_mode(self,training):
+        self.training = training
         msg = {
                 'type': 'TRAINING',
-                'val': training
+                'val': self.training
                 }
         payload = json.dumps(msg, ensure_ascii = False).encode('utf8')
         self.sendMessage(payload, isBinary = True)
@@ -252,7 +270,7 @@ if __name__ == '__main__':
 
     #f=open("cli-open.log","w")
 
-    log.FileLogObserver.emit=myFLOemit
+    #log.FileLogObserver.emit=myFLOemit
     log.startLogging(sys.stdout)
 
     factory = WebSocketClientFactory(u"ws://127.0.0.1:9000", debug=False)
