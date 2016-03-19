@@ -35,6 +35,8 @@ import base64
 import StringIO
 import urllib
 import sys
+import os
+import random
 
 from twisted.python import log,util
 from twisted.internet import reactor
@@ -72,32 +74,44 @@ class MyClientProtocol(WebSocketClientProtocol):
         self.sendMessage(payload, isBinary = True)
 
     def send_frame_loop(self):
-        if self.tok > 0:
-            #TODO
-            #img_bytes = open("Photos/IMG_0080.JPG","r").read()
+        print "start send_frame_loop"
+        def cb_send_frame_loop():
+            print "cb_send_frame_loop", self.tok
+            if self.tok > 0:
+                #TODO
+                #img_bytes = open("Photos/IMG_0080.JPG","r").read()
 
-            img = Image.open("Photos/IMG_0080.JPG")
-            img.thumbnail((400,300))
-            imgF = StringIO.StringIO()
+                photo = os.path.join("Photos",
+                        random.choice(os.listdir('Photos')))
 
-            img.save(imgF,"JPEG")
-            imgF.seek(0)
+                #img = Image.open("Photos/IMG_0080.JPG")
+                img = Image.open(photo)
+                img.thumbnail((400,300))
+                imgF = StringIO.StringIO()
 
-            img_bytes=imgF.read()
-            head = "data:image/jpeg;base64,"
-            data_url = head + base64.b64encode(img_bytes)
+                img.save(imgF,"JPEG")
+                imgF.seek(0)
 
-            msg = {
-                    'type': 'FRAME',
-                    'dataURL': data_url,
-                    'identity': self.default_person
-                    }
-            payload = json.dumps(msg, ensure_ascii = False).encode('utf8')
-            self.sendMessage(payload, isBinary = True)
+                img_bytes=imgF.read()
+                head = "data:image/jpeg;base64,"
+                data_url = head + base64.b64encode(img_bytes)
 
-            self.tok -= 1
+                msg = {
+                        'type': 'FRAME',
+                        'dataURL': data_url,
+                        'identity': self.default_person
+                        }
+                payload = json.dumps(msg, ensure_ascii = False).encode('utf8')
+                self.sendMessage(payload, isBinary = True)
 
-            #Call send_frame_loop after 250 ms
+                self.tok -= 1
+
+            self.factory.reactor.callLater(1,cb_send_frame_loop)
+
+
+        print "callLater cb_send_frame_loop"
+        self.factory.reactor.callLater(5,cb_send_frame_loop)
+        #Call send_frame_loop after 250 ms
 
     def onConnect(self, response):
         print("Server connected: {0}".format(response.peer))
@@ -113,6 +127,21 @@ class MyClientProtocol(WebSocketClientProtocol):
         self.training=False
         self.default_person = -1
 
+        def deactivate_training():
+            print "deactivate_training"
+            self.set_training_mode(0)
+
+        def add_roch():
+            print "add_roch"
+            self.add_person("Roch")
+            self.factory.reactor.callLater(5,deactivate_training)
+
+        def activate_training():
+            print "activate_training"
+            self.set_training_mode(1)
+            self.factory.reactor.callLater(1,add_roch)
+
+
         def hello():
             payload = json.dumps({'type': 'NULL'}, ensure_ascii = False).encode('utf8')
             self.sendMessage(payload, isBinary = True)
@@ -120,8 +149,40 @@ class MyClientProtocol(WebSocketClientProtocol):
             #self.factory.reactor.callLater(2, hello)
             self.sent_times.append(datetime.now())
 
+            self.factory.reactor.callLater(1,activate_training)
+
+
+
         # start sending messages every second ..
         hello()
+
+
+    def transform_image_from_rgb(self,rgb_content):
+            imgF = StringIO.StringIO()
+            imgF.write(rgb_content)
+            imgF.seek(0)
+            img = Image.open(imgF)
+            img.save("transform_image_from_rgb.jpg","JPEG")
+
+
+    def set_training_mode(self,training):
+        msg = {
+                'type': 'TRAINING',
+                'val': training
+                }
+        payload = json.dumps(msg, ensure_ascii = False).encode('utf8')
+        self.sendMessage(payload, isBinary = True)
+
+    def add_person(self,name):
+        self.default_person = len(self.people)
+        self.people.append(name)
+
+        msg = {
+                'type': 'ADD_PERSON',
+                'val': name
+                }
+        payload = json.dumps(msg, ensure_ascii = False).encode('utf8')
+        self.sendMessage(payload, isBinary = True)
 
 
     def onMessage(self, payload, isBinary):
@@ -136,13 +197,23 @@ class MyClientProtocol(WebSocketClientProtocol):
             if self.num_nulls == self.default_num_nulls:
                 self.update_rtt()
                 self.send_state1()
+                print "before send_frame_loop"
                 self.send_frame_loop()
+                print "after send_frame_loop"
             else:
                 payload = json.dumps({'type': 'NULL'}, ensure_ascii = False).encode('utf8')
                 self.sendMessage(payload, isBinary = True)
                 self.sent_times.append(datetime.now())
         elif j.get('type') == "PROCESSED":
             self.tok +=1
+        elif j.get('type') == "NEW_IMAGE":
+            self.images.append({
+                'hash':j.get('hash'),
+                'identity': j.get('identity'),
+                'image': self.transform_image_from_rgb(j.get('content')),
+                'representation': j.get('representation')
+                })
+
         elif j.get('type') == "IDENTITIES":
             identities = j.get('identities')
             print 'identities',identities
