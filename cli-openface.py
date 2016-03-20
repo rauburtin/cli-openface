@@ -31,6 +31,7 @@ import json
 import time
 from datetime import datetime
 from PIL import Image
+from PIL import ImageOps
 import base64
 import StringIO
 import urllib
@@ -116,7 +117,8 @@ class MyClientProtocol(WebSocketClientProtocol):
                 if self.photo:
                     img = Image.open(self.photo)
                     #img = img.resize((400,300))  
-                    img.thumbnail((400,300))
+                    #img.thumbnail((400,300))
+                    img = ImageOps.fit(img,(400,300))
                     imgF = StringIO.StringIO()
 
                     img.save(imgF,"JPEG")
