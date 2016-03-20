@@ -80,7 +80,7 @@ class MyClientProtocol(WebSocketClientProtocol):
             print "cb_send_frame_loop", self.tok
             if self.tok > 0:
                 #TODO
-                #img_bytes = open("Photos/IMG_0080.JPG","r").read()
+                #img_bytes = open("TrainPhotos/IMG_0080.JPG","r").read()
 
 
                 #If there are images to load, we send it
@@ -101,15 +101,15 @@ class MyClientProtocol(WebSocketClientProtocol):
                 if not self.images_to_train:
                     if self.training:
                         self.set_training_mode(False)
-                    person = random.choice(os.listdir('Photos'))
-                    self.photo=os.path.join('Photos',person,random.choice(os.listdir(os.path.join('Photos',person))))
+                    person = random.choice(os.listdir('TestPhotos'))
+                    self.photo=os.path.join('TestPhotos',person,random.choice(os.listdir(os.path.join('TestPhotos',person))))
 
                 #this one is not detected as a visage
-                #photo = "Photos/IMG_0077.JPG"
+                #photo = "TrainPhotos/IMG_0077.JPG"
                 #OK
-                #photo = "Photos/IMG_0085.JPG"
+                #photo = "TrainPhotos/IMG_0085.JPG"
 
-                #img = Image.open("Photos/IMG_0080.JPG")
+                #img = Image.open("TrainPhotos/IMG_0080.JPG")
                 print 'self.images_to_train',self.images_to_train
                 print 'photo',self.photo
                 print 'self.training',self.training
@@ -165,11 +165,11 @@ class MyClientProtocol(WebSocketClientProtocol):
 
 
         def load_images():
-            for di in os.listdir('Photos'):
-                for fi in os.listdir(os.path.join('Photos',di)):
+            for di in os.listdir('TrainPhotos'):
+                for fi in os.listdir(os.path.join('TrainPhotos',di)):
                     if not self.images_to_train.get(di):
                         self.images_to_train[di]=[]
-                    self.images_to_train[di].append(os.path.join('Photos',di,fi))
+                    self.images_to_train[di].append(os.path.join('TrainPhotos',di,fi))
             print 'self.images_to_train',self.images_to_train
         def hello():
             payload = json.dumps({'type': 'NULL'}, ensure_ascii = False).encode('utf8')
@@ -297,7 +297,7 @@ class MyClientProtocol(WebSocketClientProtocol):
             imgF.write(imgdata)
             imgF.seek(0)
             img = Image.open(imgF)
-            img.save("Returns/annotated_img_%s_%d.jpg" %(self.speople,
+            img.save("Returns/annotated_img_%s_%04d.jpg" %(self.speople,
                 self.i_annotated),"JPEG")
         else:
             print "Unrecognized message type: %s" % (j.get("type"))
@@ -313,7 +313,7 @@ if __name__ == '__main__':
     #f=open("cli-open.log","w")
 
     #TODO: Do not show the erreor if there is one
-    #log.FileLogObserver.emit=myFLOemit
+    log.FileLogObserver.emit=myFLOemit
     log.startLogging(sys.stdout)
 
     factory = WebSocketClientFactory(u"ws://127.0.0.1:9000", debug=False)

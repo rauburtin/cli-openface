@@ -1,5 +1,8 @@
 # Byte-compiled / optimized / DLL files
 Photos/
+StockPhotos/
+TrainPhotos/
+TestPhotos/
 Returns/
 my_env/
 annotated_img.jpg
