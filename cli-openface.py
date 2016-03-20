@@ -312,14 +312,18 @@ class MyClientProtocol(WebSocketClientProtocol):
 if __name__ == '__main__':
 
 
+    openface_server = os.getenv("OPENFACE_SERVER")
+    if not openface_server:
+        openface_server = "127.0.0.1"
+
     #f=open("cli-open.log","w")
 
     #TODO: Do not show the erreor if there is one
     log.FileLogObserver.emit=myFLOemit
     log.startLogging(sys.stdout)
 
-    factory = WebSocketClientFactory(u"ws://127.0.0.1:9000", debug=False)
+    factory = WebSocketClientFactory(u"ws://%s:9000" % (openface_server))
     factory.protocol = MyClientProtocol
 
-    reactor.connectTCP("127.0.0.1", 9000, factory)
+    reactor.connectTCP(openface_server, 9000, factory)
     reactor.run()
