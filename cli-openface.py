@@ -82,35 +82,59 @@ class MyClientProtocol(WebSocketClientProtocol):
                 #TODO
                 #img_bytes = open("Photos/IMG_0080.JPG","r").read()
 
-                photo = os.path.join("Photos",
-                        random.choice(os.listdir('Photos')))
+
+                #If there are images to load, we send it
+                if self.images_to_train:
+                    if self.images_to_train.keys():
+                        self.person = self.images_to_train.keys()[0]
+                        if not self.person in self.people:
+                            self.add_person(self.person)
+                        if self.images_to_train[self.person]:
+                            if not self.training:
+                                self.set_training_mode(True)
+
+                            self.photo =  self.images_to_train[self.person][0]
+                            del self.images_to_train[self.person][0]
+                            if not  self.images_to_train[self.person]:
+                                del self.images_to_train[self.person]
+
+                if not self.images_to_train:
+                    if self.training:
+                        self.set_training_mode(False)
+                    person = random.choice(os.listdir('Photos'))
+                    self.photo=os.path.join('Photos',person,random.choice(os.listdir(os.path.join('Photos',person))))
+
                 #this one is not detected as a visage
                 #photo = "Photos/IMG_0077.JPG"
                 #OK
                 #photo = "Photos/IMG_0085.JPG"
 
                 #img = Image.open("Photos/IMG_0080.JPG")
-                img = Image.open(photo)
-                #img = img.resize((400,300))  
-                img.thumbnail((400,300))
-                imgF = StringIO.StringIO()
+                print 'self.images_to_train',self.images_to_train
+                print 'photo',self.photo
+                print 'self.training',self.training
+                if self.photo:
+                    img = Image.open(self.photo)
+                    #img = img.resize((400,300))  
+                    img.thumbnail((400,300))
+                    imgF = StringIO.StringIO()
 
-                img.save(imgF,"JPEG")
-                imgF.seek(0)
+                    img.save(imgF,"JPEG")
+                    imgF.seek(0)
 
-                img_bytes=imgF.read()
-                head = "data:image/jpeg;base64,"
-                data_url = head + base64.b64encode(img_bytes)
+                    img_bytes=imgF.read()
+                    head = "data:image/jpeg;base64,"
+                    data_url = head + base64.b64encode(img_bytes)
 
-                msg = {
-                        'type': 'FRAME',
-                        'dataURL': data_url,
-                        'identity': self.default_person
-                        }
-                payload = json.dumps(msg, ensure_ascii = False).encode('utf8')
-                self.sendMessage(payload, isBinary = True)
+                    msg = {
+                            'type': 'FRAME',
+                            'dataURL': data_url,
+                            'identity': self.default_person
+                            }
+                    payload = json.dumps(msg, ensure_ascii = False).encode('utf8')
+                    self.sendMessage(payload, isBinary = True)
 
-                self.tok -= 1
+                    self.tok -= 1
 
             self.factory.reactor.callLater(0.250,cb_send_frame_loop)
 
@@ -133,22 +157,20 @@ class MyClientProtocol(WebSocketClientProtocol):
         self.training=False
         self.default_person = -1
         self.i_aligned=0 #just a counter for the image aligned
-
-        def deactivate_training():
-            print "deactivate_training"
-            self.set_training_mode(False)
-
-        def add_roch():
-            print "add_roch"
-            self.add_person("Roch")
-            self.factory.reactor.callLater(120,deactivate_training)
-
-        def activate_training():
-            print "activate_training"
-            self.set_training_mode(True)
-            self.factory.reactor.callLater(1,add_roch)
+        self.i_annotated=0 #just a counter for the  annotated image
+        self.images_to_train={} #The list of people and images to load first 
+        self.person=""
+        self.photo=""
+        self.speople="" #string of people
 
 
+        def load_images():
+            for di in os.listdir('Photos'):
+                for fi in os.listdir(os.path.join('Photos',di)):
+                    if not self.images_to_train.get(di):
+                        self.images_to_train[di]=[]
+                    self.images_to_train[di].append(os.path.join('Photos',di,fi))
+            print 'self.images_to_train',self.images_to_train
         def hello():
             payload = json.dumps({'type': 'NULL'}, ensure_ascii = False).encode('utf8')
             self.sendMessage(payload, isBinary = True)
@@ -156,7 +178,7 @@ class MyClientProtocol(WebSocketClientProtocol):
             #self.factory.reactor.callLater(2, hello)
             self.sent_times.append(datetime.now())
 
-            self.factory.reactor.callLater(0,activate_training)
+            self.factory.reactor.callLater(0,load_images)
 
 
 
@@ -192,7 +214,7 @@ class MyClientProtocol(WebSocketClientProtocol):
             #img = Image.open(imgF)
             self.i_aligned += 1
 
-            img.save("transform_image_from_rgb%04d.jpg" %(self.i_aligned) ,"JPEG")
+            img.save("Returns/transform_image_from_rgb%04d.jpg" %(self.i_aligned) ,"JPEG")
             return data
 
 
@@ -245,23 +267,27 @@ class MyClientProtocol(WebSocketClientProtocol):
                 'image': self.transform_image_from_rgb(j.get('content')),
                 'representation': j.get('representation')
                 })
-            print "identity:", j.get('identity')
+            print "new_image_ident", j.get('identity')
 
         elif j.get('type') == "IDENTITIES":
             identities = j.get('identities')
             print 'identities',identities
-            speople=""
+            self.speople=""
             len_id = len(identities)
             if len_id > 0:
                 for id_idx in identities:
                     identity = "Unknown"
                     if id_idx != -1:
                         identity=self.people[id_idx]
-                        speople += identity+","
+                        if not self.speople:
+                            self.speople += identity
+                        else:
+                            self.speople += "_" + identity
             else:
-                speople="Nobody detected."
-            print "speople %s" %(speople)
+                self.speople="Nobody"
+            print "speople %s" %(self.speople)
         elif j.get('type') == "ANNOTATED":
+            self.i_annotated += 1
             data_url=j.get('content')
             head = "data:image/png;base64,"
             url_quoted=data_url[len(head):]
@@ -271,7 +297,8 @@ class MyClientProtocol(WebSocketClientProtocol):
             imgF.write(imgdata)
             imgF.seek(0)
             img = Image.open(imgF)
-            img.save("annotated_img.jpg","JPEG")
+            img.save("Returns/annotated_img_%s_%d.jpg" %(self.speople,
+                self.i_annotated),"JPEG")
         else:
             print "Unrecognized message type: %s" % (j.get("type"))
 
@@ -285,6 +312,7 @@ if __name__ == '__main__':
 
     #f=open("cli-open.log","w")
 
+    #TODO: Do not show the erreor if there is one
     #log.FileLogObserver.emit=myFLOemit
     log.startLogging(sys.stdout)
 
