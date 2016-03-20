@@ -1,7 +1,9 @@
 # Byte-compiled / optimized / DLL files
 Photos/
+Returns/
 my_env/
 annotated_img.jpg
+transform_image_from_rgb*
 
 __pycache__/
 *.py[cod]

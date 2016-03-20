@@ -84,9 +84,14 @@ class MyClientProtocol(WebSocketClientProtocol):
 
                 photo = os.path.join("Photos",
                         random.choice(os.listdir('Photos')))
+                #this one is not detected as a visage
+                #photo = "Photos/IMG_0077.JPG"
+                #OK
+                #photo = "Photos/IMG_0085.JPG"
 
                 #img = Image.open("Photos/IMG_0080.JPG")
                 img = Image.open(photo)
+                #img = img.resize((400,300))  
                 img.thumbnail((400,300))
                 imgF = StringIO.StringIO()
 
@@ -107,11 +112,11 @@ class MyClientProtocol(WebSocketClientProtocol):
 
                 self.tok -= 1
 
-            self.factory.reactor.callLater(1,cb_send_frame_loop)
+            self.factory.reactor.callLater(0.250,cb_send_frame_loop)
 
 
         print "callLater cb_send_frame_loop"
-        self.factory.reactor.callLater(1,cb_send_frame_loop)
+        self.factory.reactor.callLater(0,cb_send_frame_loop)
         #Call send_frame_loop after 250 ms
 
     def onConnect(self, response):
@@ -127,6 +132,7 @@ class MyClientProtocol(WebSocketClientProtocol):
         self.people=[]
         self.training=False
         self.default_person = -1
+        self.i_aligned=0 #just a counter for the image aligned
 
         def deactivate_training():
             print "deactivate_training"
@@ -135,7 +141,7 @@ class MyClientProtocol(WebSocketClientProtocol):
         def add_roch():
             print "add_roch"
             self.add_person("Roch")
-            self.factory.reactor.callLater(10,deactivate_training)
+            self.factory.reactor.callLater(120,deactivate_training)
 
         def activate_training():
             print "activate_training"
@@ -159,6 +165,13 @@ class MyClientProtocol(WebSocketClientProtocol):
 
 
     def transform_image_from_rgb(self,rgb_content):
+            #Try with numpy
+            # import numpy as np
+            # eventually set frpom rgb_content and chenge the type after
+            # a1=np.array[rgb]
+            # a2=np.reshape(a1,(dlen/4,4))
+            # eventually swap column 0,1,2
+            # a2[:;-1:]=255
             dlen=len(rgb_content)
             rgb = [int(x) for x in rgb_content]
             print "dlen",dlen
@@ -177,8 +190,9 @@ class MyClientProtocol(WebSocketClientProtocol):
             #imgF.write(data)
             #imgF.seek(0)
             #img = Image.open(imgF)
+            self.i_aligned += 1
 
-            img.save("transform_image_from_rgb.jpg","JPEG")
+            img.save("transform_image_from_rgb%04d.jpg" %(self.i_aligned) ,"JPEG")
             return data
 
 
@@ -231,6 +245,7 @@ class MyClientProtocol(WebSocketClientProtocol):
                 'image': self.transform_image_from_rgb(j.get('content')),
                 'representation': j.get('representation')
                 })
+            print "identity:", j.get('identity')
 
         elif j.get('type') == "IDENTITIES":
             identities = j.get('identities')
