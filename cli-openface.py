@@ -357,6 +357,7 @@ class MyClientProtocol(WebSocketClientProtocol):
                             self.speople += "_" + identity
             else:
                 self.speople="Nobody"
+            #curl -X POST --header "Content-Type: application/json" --header "Accept: application/json" "http://10.1.5.17:3000/api/unknowns/execute"
             print "speople %s" %(self.speople)
             cmd='curl -X POST --header "Content-Type: application/x-www-form-urlencoded" --header "Accept: application/json" -d "name=%s" "http://10.1.5.17:3000/api/collaborators/execute"'
             subprocess.Popen(cmd % (self.speople),shell=True)
@@ -365,8 +366,14 @@ class MyClientProtocol(WebSocketClientProtocol):
             data_url=j.get('content')
             head = "data:image/png;base64,"
             url_quoted=data_url[len(head):]
-            url_unquoted=urllib.unquote(url_quoted)
+            print 'data size:%d' %(len(url_quoted))
+            t1=time.time()
+            #url_unquoted=urllib.unquote(url_quoted)
+            url_unquoted=url_quoted
+            print 'urllib.unquote time: %f' % (time.time()-t1)
+            t1=time.time()
             imgdata = base64.b64decode(url_unquoted)
+            print 'base64.b64decode time: %f' % (time.time()-t1)
             imgF = StringIO.StringIO()
             imgF.write(imgdata)
             imgF.seek(0)
