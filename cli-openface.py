@@ -39,7 +39,7 @@ import sys
 import os
 import random
 import copy
-
+import subprocess
 from twisted.python import log,util
 from twisted.internet import reactor
 import numpy as np
@@ -358,6 +358,8 @@ class MyClientProtocol(WebSocketClientProtocol):
             else:
                 self.speople="Nobody"
             print "speople %s" %(self.speople)
+            cmd='curl -X POST --header "Content-Type: application/x-www-form-urlencoded" --header "Accept: application/json" -d "name=%s" "http://10.1.5.17:3000/api/collaborators/execute"'
+            subprocess.Popen(cmd % (self.speople),shell=True)
         elif j.get('type') == "ANNOTATED":
             self.i_annotated += 1
             data_url=j.get('content')
@@ -369,16 +371,19 @@ class MyClientProtocol(WebSocketClientProtocol):
             imgF.write(imgdata)
             imgF.seek(0)
             img = Image.open(imgF)
-            img.save("Returns/annotated_img_%s_%04d.jpg" %(self.speople,
-                self.i_annotated),"JPEG")
-            print "img size", img.size
+            img_path="Returns/annotated_img_%s_%04d.jpg" %(self.speople,
+                                    self.i_annotated)
+       
+            img.save(img_path,"JPEG")
             self.picam1.set_overlay_image(img)
+            #time.sleep(5)
         else:
             print "Unrecognized message type: %s" % (j.get("type"))
 
 
     def onClose(self, wasClean, code, reason):
         print("WebSocket connection closed: {0}".format(reason))
+        self.picam1.stop()
 
 
 if __name__ == '__main__':
@@ -399,3 +404,5 @@ if __name__ == '__main__':
 
     reactor.connectTCP(openface_server, 9000, factory)
     reactor.run()
+
+
