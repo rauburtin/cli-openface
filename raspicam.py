@@ -10,6 +10,8 @@ import threading
 import copy
 class PiCamera(threading.Thread):
     stream = None
+    height=800
+    width=600
     def __init__(self, thread_name):
         threading.Thread.__init__(self)
         self.thread_name = thread_name
@@ -17,11 +19,12 @@ class PiCamera(threading.Thread):
         self.image_processed = True
         self.img = None
         self.tostop = False
-        self.np_overlay=np.zeros((480, 640, 3), dtype=np.uint8)
+        self.image_overlay =  None
+        self.ovs=[]
 
-    def set_overlay_image(self,np_array):
-        self.np_overlay=np_array
-        print self.np_overlay.shape
+    def set_overlay_image(self,image):
+        self.image_overlay=image
+        print self.image_overlay.size
 
     def stop(self):
         self.tostop = True
@@ -31,7 +34,7 @@ class PiCamera(threading.Thread):
         print self.thread_name
         try:
             with picamera.PiCamera() as camera:
-                camera.resolution = (640, 480)
+                camera.resolution = (self.height, self.width)
                 #camera.resolution = (800, 600)
                 # Start a preview and let the camera warm up for 2 seconds
                 camera.start_preview()
@@ -47,6 +50,12 @@ class PiCamera(threading.Thread):
                     if self.tostop:
                         print "before break"
                         break
+                    #delete overlays
+                    for o in self.ovs:
+                        camera.remove_overlay(o)
+                    self.ovs=[]
+
+
                     # Write the length of the capture to the stream and flush to
                     # ensure it actually gets sent
                     # Rewind the stream and send the image data over the wire
@@ -59,11 +68,20 @@ class PiCamera(threading.Thread):
                     self.img=copy.deepcopy(Image.open(self.stream))
                     self.image_ready = True
                     
-                    print "self.np_overlay.shape", self.np_overlay.shape
-                    o = camera.add_overlay(np.getbuffer(self.np_overlay), layer=3, alpha=64)
-                    #o = camera.add_overlay(np.getbuffer(a), layer=3, alpha=64)
-                    time.sleep(2)
-                    camera.remove_overlay(o)
+                    if self.image_overlay:
+                        pad = Image.new('RGB', (
+                                    ((self.image_overlay.size[0] + 31) // 32) * 32,
+                                    ((self.image_overlay.size[1] + 15) // 16) * 16,
+                                     ))
+                        pad.paste(self.image_overlay, (0, 0)) 
+                        o = camera.add_overlay(pad.tobytes(),
+                                size=self.image_overlay.size)
+                        o.alpha = 128
+                        o.layer = 3
+                        self.ovs.append(o)
+                        #o = camera.add_overlay(np.getbuffer(self.np_overlay), layer=3, alpha=64)
+                        #o = camera.add_overlay(np.getbuffer(a), layer=3, alpha=64)
+                        #time.sleep(0.1)
         
                     # If we've been capturing for more than 30 seconds, quit
                     if time.time() - start > 30:
@@ -103,12 +121,10 @@ if __name__ == '__main__':
                     #a[150, :, :] = 0xff
                     #a[:, vert, :] = 0xff
                     #vert += 10
-                    img1 = Image.open('Returns/annotated_img_Roch_0001.jpg')
-                    img1 = ImageOps.fit(img1,(680,480))
+                    img1 = Image.open('Returns/annotated_img_Roch_0002.jpg')
 
-                    a=np.array(img1)
-                    print "a.shape", a.shape
-                    picam1.set_overlay_image(a)
+
+                    picam1.set_overlay_image(img1)
                 except IOError:
                     pass
                 finally:

@@ -371,8 +371,8 @@ class MyClientProtocol(WebSocketClientProtocol):
             img = Image.open(imgF)
             img.save("Returns/annotated_img_%s_%04d.jpg" %(self.speople,
                 self.i_annotated),"JPEG")
-            a = np.array(img)
-            self.picam1.set_overlay_image(a)
+            print "img size", img.size
+            self.picam1.set_overlay_image(img)
         else:
             print "Unrecognized message type: %s" % (j.get("type"))
 
