@@ -1,2 +1,4 @@
 autobahn[twisted]
 imagehash
+picamera
+hg+http://bitbucket.org/pygame/pygame

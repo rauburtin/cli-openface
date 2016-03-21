@@ -102,8 +102,8 @@ class MyClientProtocol(WebSocketClientProtocol):
                 if not self.images_to_train:
                     if self.training:
                         self.set_training_mode(False)
-                    person = random.choice(os.listdir('TestPhotos'))
-                    self.photo=os.path.join('TestPhotos',person,random.choice(os.listdir(os.path.join('TestPhotos',person))))
+                    #person = random.choice(os.listdir('TestPhotos'))
+                    #self.photo=os.path.join('TestPhotos',person,random.choice(os.listdir(os.path.join('TestPhotos',person))))
 
                 #this one is not detected as a visage
                 #photo = "TrainPhotos/IMG_0077.JPG"
