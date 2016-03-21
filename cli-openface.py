@@ -38,10 +38,12 @@ import urllib
 import sys
 import os
 import random
+import copy
 
 from twisted.python import log,util
 from twisted.internet import reactor
 import numpy as np
+from raspicam import PiCamera
 
 def myFLOemit(self,eventDict):
     """Custom emit for FileLogObserver"""
@@ -79,6 +81,7 @@ class MyClientProtocol(WebSocketClientProtocol):
         print "start send_frame_loop"
         def cb_send_frame_loop():
             print "cb_send_frame_loop", self.tok
+            img = None
             if self.tok > 0:
                 #TODO
                 #img_bytes = open("TrainPhotos/IMG_0080.JPG","r").read()
@@ -104,6 +107,25 @@ class MyClientProtocol(WebSocketClientProtocol):
                         self.set_training_mode(False)
                     #person = random.choice(os.listdir('TestPhotos'))
                     #self.photo=os.path.join('TestPhotos',person,random.choice(os.listdir(os.path.join('TestPhotos',person))))
+                    #HACK with raspicam
+                    self.photo=StringIO.StringIO()
+                    self.picam1.image_processed = False
+                    t1=time.time()
+                    #wait for the image to be ready
+                    while (not self.picam1.image_ready) and (time.time() - t1) < 1:
+                        time.sleep(0.1)
+                    img=self.picam1.img
+                    if img:
+                        try:
+                            img.save(self.photo,'JPEG')
+                        except IOError:
+                            pass
+                        finally:
+                            self.picam1.image_processed = True
+                    else:
+                        self.picam1.image_processed = True
+
+
 
                 #this one is not detected as a visage
                 #photo = "TrainPhotos/IMG_0077.JPG"
@@ -164,6 +186,8 @@ class MyClientProtocol(WebSocketClientProtocol):
         self.person=""
         self.photo=""
         self.speople="" #string of people
+        self.picam1 = PiCamera("Thread-1")
+        self.picam1.start()
 
 
         def load_images():
@@ -347,6 +371,8 @@ class MyClientProtocol(WebSocketClientProtocol):
             img = Image.open(imgF)
             img.save("Returns/annotated_img_%s_%04d.jpg" %(self.speople,
                 self.i_annotated),"JPEG")
+            a = np.array(img)
+            self.picam1.set_overlay_image(a)
         else:
             print "Unrecognized message type: %s" % (j.get("type"))
 

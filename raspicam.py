@@ -5,6 +5,7 @@ import time
 import picamera
 import numpy as np
 from PIL import Image
+from PIL import ImageOps
 import threading
 import copy
 class PiCamera(threading.Thread):
@@ -20,6 +21,7 @@ class PiCamera(threading.Thread):
 
     def set_overlay_image(self,np_array):
         self.np_overlay=np_array
+        print self.np_overlay.shape
 
     def stop(self):
         self.tostop = True
@@ -30,7 +32,7 @@ class PiCamera(threading.Thread):
         try:
             with picamera.PiCamera() as camera:
                 camera.resolution = (640, 480)
-                #camera.resolution = (400, 300)
+                #camera.resolution = (800, 600)
                 # Start a preview and let the camera warm up for 2 seconds
                 camera.start_preview()
                 time.sleep(2)
@@ -57,9 +59,10 @@ class PiCamera(threading.Thread):
                     self.img=copy.deepcopy(Image.open(self.stream))
                     self.image_ready = True
                     
+                    print "self.np_overlay.shape", self.np_overlay.shape
                     o = camera.add_overlay(np.getbuffer(self.np_overlay), layer=3, alpha=64)
                     #o = camera.add_overlay(np.getbuffer(a), layer=3, alpha=64)
-                    time.sleep(0.1)
+                    time.sleep(2)
                     camera.remove_overlay(o)
         
                     # If we've been capturing for more than 30 seconds, quit
@@ -96,10 +99,15 @@ if __name__ == '__main__':
                     img.save('Images/test%04d.jpg' % (i) ,'JPEG')
                     time.sleep(.1)
 
-                    a = np.zeros((480, 640, 3), dtype=np.uint8)
-                    a[240, :, :] = 0xff
-                    a[:, vert, :] = 0xff
-                    vert += 10
+                    #a = np.zeros((480, 640, 3), dtype=np.uint8)
+                    #a[150, :, :] = 0xff
+                    #a[:, vert, :] = 0xff
+                    #vert += 10
+                    img1 = Image.open('Returns/annotated_img_Roch_0001.jpg')
+                    img1 = ImageOps.fit(img1,(680,480))
+
+                    a=np.array(img1)
+                    print "a.shape", a.shape
                     picam1.set_overlay_image(a)
                 except IOError:
                     pass
